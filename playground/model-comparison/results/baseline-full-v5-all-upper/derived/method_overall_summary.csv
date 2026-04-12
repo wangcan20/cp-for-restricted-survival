@@ -1,0 +1,7 @@
+method_id,method_label,estimator_family,working_model,spec_status,is_conformal,n_tau,coverage_mean_avg,length_mean_avg,abs_cov_error_avg
+cp_cox,CP + Cox,conformal,Cox,correct,TRUE,4,0.899125,2.336916156223088,0.004013888888888872
+cp_lognormal,CP + Log-Normal,conformal,Log-Normal,misspecified,TRUE,4,0.9005694444444444,2.3363721097670584,0.002263888888888871
+cp_weibull,CP + Weibull,conformal,Weibull,correct,TRUE,4,0.8988194444444444,2.3366452357445593,0.0027083333333333126
+plugin_cox,Cox Plug-in,plug-in,Cox,correct,FALSE,4,0.8989722222222222,2.3371656021995904,0.002972222222222237
+plugin_lognormal,Log-Normal Plug-in,plug-in,Log-Normal,misspecified,FALSE,4,0.9045416666666667,2.342874494422953,0.005791666666666667
+plugin_weibull,Weibull Plug-in,plug-in,Weibull,correct,FALSE,4,0.8994305555555555,2.3376788593733924,0.002124999999999988

@@ -1,0 +1,323 @@
+---
+title: "Playground: Working-Model Comparison"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: show
+execute:
+  warning: false
+  message: false
+params:
+  results_dir: "results/pilot"
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(knitr)
+library(stringr)
+
+pretty_dist_name <- function(dist) {
+  switch(
+    dist,
+    weibull = "Weibull",
+    lognormal = "Log-Normal",
+    loglogistic = "Log-Logistic",
+    exponential = "Exponential",
+    str_to_title(dist)
+  )
+}
+
+resolve_results_dir <- function(path) {
+  candidates <- c(
+    path,
+    file.path(getwd(), path),
+    file.path(dirname(getwd()), path),
+    file.path(dirname(dirname(getwd())), path)
+  )
+  hit <- candidates[dir.exists(candidates)]
+  if (length(hit) == 0) stop("Cannot find results_dir: ", path)
+  normalizePath(hit[1], winslash = "/", mustWork = TRUE)
+}
+
+results_dir <- resolve_results_dir(params$results_dir)
+raw_dir <- file.path(results_dir, "raw")
+derived_dir <- file.path(results_dir, "derived")
+fig_dir <- file.path(results_dir, "figures")
+dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
+
+run_cfg <- read_csv(file.path(raw_dir, "run_config.csv"), show_col_types = FALSE)
+rep_df <- read_csv(file.path(raw_dir, "rep_level_results.csv"), show_col_types = FALSE)
+sample_df <- read_csv(file.path(raw_dir, "test_level_samples_rep1_by_tau.csv"), show_col_types = FALSE)
+method_tau_summary <- read_csv(file.path(derived_dir, "method_tau_summary.csv"), show_col_types = FALSE)
+method_overall_summary <- read_csv(file.path(derived_dir, "method_overall_summary.csv"), show_col_types = FALSE)
+
+target_coverage <- 1 - run_cfg$alpha[1]
+wrong_label <- pretty_dist_name(run_cfg$wrong_dist[1])
+method_levels <- c(
+  "Weibull Plug-in",
+  "Cox Plug-in",
+  paste0(wrong_label, " Plug-in"),
+  "CP + Weibull",
+  "CP + Cox",
+  paste0("CP + ", wrong_label)
+)
+
+method_tau_summary <- method_tau_summary %>%
+  filter(method_label %in% method_levels)
+
+sample_df <- sample_df %>%
+  filter(method_label %in% method_levels)
+
+method_overall_summary <- method_overall_summary %>%
+  filter(method_label %in% method_levels)
+
+method_tau_summary <- method_tau_summary %>%
+  mutate(
+    method_label = factor(method_label, levels = method_levels),
+    estimator_family = factor(estimator_family, levels = c("plug-in", "conformal")),
+    working_model = factor(working_model, levels = c("Weibull", "Cox", wrong_label))
+  )
+
+sample_df <- sample_df %>%
+  mutate(
+    method_label = factor(method_label, levels = method_levels),
+    covered_label = if_else(covered == 1, "Covered", "Missed"),
+    estimator_family = factor(estimator_family, levels = c("plug-in", "conformal")),
+    working_model = factor(working_model, levels = c("Weibull", "Cox", wrong_label))
+  )
+
+method_color_values <- c(
+  "Weibull Plug-in" = "#1b9e77",
+  "Cox Plug-in" = "#386cb0",
+  "CP + Weibull" = "#1b9e77",
+  "CP + Cox" = "#386cb0"
+)
+method_color_values[paste0(wrong_label, " Plug-in")] <- "#d95f02"
+method_color_values[paste0("CP + ", wrong_label)] <- "#d95f02"
+
+method_shape_values <- c(
+  "Weibull Plug-in" = 16,
+  "Cox Plug-in" = 16,
+  "CP + Weibull" = 0,
+  "CP + Cox" = 0
+)
+method_shape_values[paste0(wrong_label, " Plug-in")] <- 16
+method_shape_values[paste0("CP + ", wrong_label)] <- 0
+
+plot_nudges <- tibble::tibble(
+  method_label = factor(method_levels, levels = method_levels),
+  x_nudge = c(-0.015, -0.009, -0.003, 0.003, 0.009, 0.015),
+  dx = c(-0.015, 0, 0.015, -0.015, 0, 0.015),
+  dy = c(0.0008, 0.0016, 0.0008, -0.0008, -0.0016, -0.0008)
+)
+
+save_plot <- function(filename, p, width = 9, height = 5.5, dpi = 300) {
+  ggsave(file.path(fig_dir, filename), p, width = width, height = height, dpi = dpi)
+  invisible(NULL)
+}
+```
+
+## Run Metadata
+
+```{r}
+kable(run_cfg)
+kable(method_overall_summary)
+```
+
+Results folder: `r results_dir`
+
+All six methods in this report return predictive intervals of the form $[\widehat L(x), \tau]$.
+
+## Summary Table by Tau
+
+```{r}
+summary_table <- method_tau_summary %>%
+  transmute(
+    tau_quantile = round(tau_quantile, 2),
+    method = method_label,
+    estimator_family,
+    working_model,
+    spec_status,
+    coverage_mean = round(coverage_mean, 3),
+    coverage_ci = sprintf("[%.3f, %.3f]", coverage_ci_low, coverage_ci_high),
+    length_mean = round(length_mean, 3),
+    length_ci = sprintf("[%.3f, %.3f]", length_ci_low, length_ci_high),
+    admin_mass_emp_mean = round(admin_mass_emp_mean, 3)
+  ) %>%
+  arrange(tau_quantile, method)
+
+kable(summary_table)
+```
+
+## Coverage Across Tau
+
+```{r}
+p_cov <- ggplot(
+  method_tau_summary,
+  aes(
+    x = tau_quantile,
+    y = coverage_mean,
+    group = method_label
+  )
+) +
+  geom_hline(yintercept = target_coverage, color = "gray35", linewidth = 0.5) +
+  geom_line(linewidth = 0.8) +
+  geom_point(
+    data = method_tau_summary %>% filter(estimator_family == "plug-in"),
+    aes(color = method_label, shape = method_label),
+    size = 2.2
+  ) +
+  geom_point(
+    data = method_tau_summary %>% filter(estimator_family == "conformal"),
+    aes(color = method_label, shape = method_label),
+    size = 2.8,
+    stroke = 1.0
+  ) +
+  geom_errorbar(aes(ymin = coverage_ci_low, ymax = coverage_ci_high), width = 0.015, alpha = 0.85) +
+  scale_color_manual(values = method_color_values, breaks = method_levels) +
+  scale_shape_manual(values = method_shape_values, breaks = method_levels) +
+  scale_x_continuous(breaks = sort(unique(method_tau_summary$tau_quantile))) +
+  labs(
+    title = "Coverage vs Administrative Horizon",
+    x = "tau quantile used in the DGP",
+    y = "Mean empirical coverage",
+    color = "Method",
+    shape = "Method"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("coverage_vs_tau_by_method.png", p_cov, width = 10.5, height = 5.8)
+save_plot("coverage_vs_tau_by_method.pdf", p_cov, width = 10.5, height = 5.8)
+p_cov
+```
+
+## Interval Length Across Tau
+
+```{r}
+p_len <- ggplot(
+  method_tau_summary,
+  aes(
+    x = tau_quantile,
+    y = length_mean,
+    group = method_label
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  geom_point(
+    data = method_tau_summary %>% filter(estimator_family == "plug-in"),
+    aes(color = method_label, shape = method_label),
+    size = 2.2
+  ) +
+  geom_point(
+    data = method_tau_summary %>% filter(estimator_family == "conformal"),
+    aes(color = method_label, shape = method_label),
+    size = 2.8,
+    stroke = 1.0
+  ) +
+  geom_errorbar(aes(ymin = length_ci_low, ymax = length_ci_high), width = 0.015, alpha = 0.85) +
+  scale_color_manual(values = method_color_values, breaks = method_levels) +
+  scale_shape_manual(values = method_shape_values, breaks = method_levels) +
+  scale_x_continuous(breaks = sort(unique(method_tau_summary$tau_quantile))) +
+  labs(
+    title = "Interval Length vs Administrative Horizon",
+    x = "tau quantile used in the DGP",
+    y = "Mean interval length",
+    color = "Method",
+    shape = "Method"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("length_vs_tau_by_method.png", p_len, width = 10.5, height = 5.8)
+save_plot("length_vs_tau_by_method.pdf", p_len, width = 10.5, height = 5.8)
+p_len
+```
+
+## Coverage-Length Tradeoff
+
+```{r}
+tradeoff_df <- method_tau_summary %>%
+  left_join(plot_nudges, by = "method_label") %>%
+  mutate(
+    length_plot = length_mean + dx,
+    coverage_plot = coverage_mean + dy
+  )
+
+p_trade <- ggplot(
+  tradeoff_df,
+  aes(
+    x = length_plot,
+    y = coverage_plot,
+    color = method_label,
+    shape = method_label
+  )
+) +
+  geom_hline(yintercept = target_coverage, color = "gray35", linewidth = 0.5) +
+  geom_point(size = 3.0, alpha = 0.72) +
+  scale_color_manual(values = method_color_values, breaks = method_levels) +
+  scale_shape_manual(values = method_shape_values, breaks = method_levels) +
+  facet_wrap(~paste0("tau_q=", formatC(tau_quantile, digits = 2, format = "f")), ncol = 2) +
+  labs(
+    title = "Coverage-Length Tradeoff by Tau Regime",
+    subtitle = "Points are slightly nudged within each tau panel to avoid exact overlap",
+    x = "Mean interval length",
+    y = "Mean empirical coverage",
+    color = "Method",
+    shape = "Method"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("coverage_length_tradeoff_by_tau.png", p_trade, width = 11.5, height = 6.8)
+save_plot("coverage_length_tradeoff_by_tau.pdf", p_trade, width = 11.5, height = 6.8)
+p_trade
+```
+
+## Direct Interval Comparison at the Middle Tau
+
+```{r}
+focus_tau <- sort(unique(sample_df$tau_quantile))
+focus_tau <- if (any(abs(focus_tau - 0.90) < 1e-8)) {
+  0.90
+} else {
+  focus_tau[ceiling(length(focus_tau) / 2)]
+}
+
+direct_df <- sample_df %>%
+  filter(abs(tau_quantile - focus_tau) < 1e-8)
+
+p_direct <- ggplot(direct_df, aes(y = obs_rank)) +
+  geom_segment(aes(x = pi_lower, xend = pi_upper, yend = obs_rank, color = covered_label), alpha = 0.9) +
+  geom_point(aes(x = T_star, color = covered_label), size = 1.1) +
+  geom_vline(aes(xintercept = tau), color = "gray35", linewidth = 0.45) +
+  facet_wrap(~method_label, ncol = 2) +
+  scale_color_manual(values = c("Covered" = "#1b9e77", "Missed" = "#d95f02")) +
+  labs(
+    title = paste0("Rep 1 Direct Interval Comparison at tau Quantile ", formatC(focus_tau, digits = 2, format = "f")),
+    subtitle = "Same sampled test units across all plotted methods; common x-axis across panels; rows ordered by true linear predictor x^T beta",
+    x = "Time scale",
+    y = "Observation rank",
+    color = "Coverage"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("interval_examples_focus_tau.png", p_direct, width = 10.5, height = 9)
+save_plot("interval_examples_focus_tau.pdf", p_direct, width = 10.5, height = 9)
+p_direct
+```
+
+## Traceability Notes
+
+Key files in this results folder:
+
+- `raw/run_config.csv`
+- `raw/rep_level_results.csv`
+- `raw/test_level_samples_rep1_by_tau.csv`
+- `derived/method_tau_summary.csv`
+- `derived/method_overall_summary.csv`
+- `figures/coverage_vs_tau_by_method.pdf`
+- `figures/length_vs_tau_by_method.pdf`
+- `figures/coverage_length_tradeoff_by_tau.pdf`
+- `figures/interval_examples_focus_tau.pdf`

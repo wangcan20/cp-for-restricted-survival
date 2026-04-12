@@ -1,0 +1,228 @@
+---
+title: "Section 1 Simulation Analysis"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: show
+execute:
+  warning: false
+  message: false
+params:
+  results_dir: "results/pilot"
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(stringr)
+library(knitr)
+
+resolve_results_dir <- function(path) {
+  candidates <- c(
+    path,
+    file.path(getwd(), path),
+    file.path(dirname(getwd()), path)
+  )
+  hit <- candidates[dir.exists(candidates)]
+  if (length(hit) == 0) stop("Cannot find results_dir: ", path)
+  normalizePath(hit[1], winslash = "/", mustWork = TRUE)
+}
+
+results_dir <- resolve_results_dir(params$results_dir)
+raw_dir <- file.path(results_dir, "raw")
+derived_dir <- file.path(results_dir, "derived")
+fig_dir <- file.path(results_dir, "figures")
+dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
+
+manifest <- read_csv(file.path(raw_dir, "scenario_manifest.csv"), show_col_types = FALSE)
+rep_df <- read_csv(file.path(raw_dir, "rep_level_results.csv"), show_col_types = FALSE)
+sample_df <- read_csv(file.path(raw_dir, "test_level_samples_rep1.csv"), show_col_types = FALSE)
+setting_summary <- read_csv(file.path(derived_dir, "setting_summary.csv"), show_col_types = FALSE)
+overall_summary <- read_csv(file.path(derived_dir, "overall_summary.csv"), show_col_types = FALSE)
+run_cfg <- read_csv(file.path(raw_dir, "run_config.csv"), show_col_types = FALSE)
+
+target_coverage <- unique(rep_df$alpha)
+target_coverage <- 1 - target_coverage[1]
+
+save_plot <- function(filename, p, width = 9, height = 5.5, dpi = 300) {
+  out_path <- file.path(fig_dir, filename)
+  ggsave(out_path, p, width = width, height = height, dpi = dpi)
+  pdf_name <- sub("\\.[^.]+$", ".pdf", filename)
+  ggsave(file.path(fig_dir, pdf_name), p, width = width, height = height)
+}
+```
+
+## Run Metadata
+
+```{r}
+kable(run_cfg)
+kable(overall_summary)
+```
+
+This report uses the main Section 1 conformal procedure with Cox working model and interval form $[\widehat L_\alpha(x), \tau]$, where $\widehat L_\alpha(x)$ is obtained from a single global empirical $(1-\alpha)$ pivot cutoff.
+
+Results folder: `r results_dir`
+
+## Scenario Manifest
+
+```{r}
+kable(manifest %>% arrange(setting_id))
+```
+
+## Aggregated Tables
+
+```{r}
+setting_table <- setting_summary %>%
+  transmute(
+    setting_id,
+    dgp_id,
+    beta_scale,
+    gamma,
+    cens_target,
+    tau_quantile,
+    n_rep,
+    coverage_mean = round(coverage_mean, 3),
+    coverage_ci = sprintf("[%.3f, %.3f]", coverage_ci_low, coverage_ci_high),
+    length_mean = round(length_mean, 3),
+    length_ci = sprintf("[%.3f, %.3f]", length_ci_low, length_ci_high),
+    tau_mean = round(tau_mean, 3),
+    censor_rate_emp_mean = round(censor_rate_emp_mean, 3),
+    admin_mass_emp_mean = round(admin_mass_emp_mean, 3)
+  ) %>%
+  arrange(dgp_id, cens_target, tau_quantile)
+
+kable(setting_table)
+```
+
+## Aggregated Figures
+
+```{r}
+p_cov <- setting_summary %>%
+  mutate(
+    cens_label = paste0("cens_target=", formatC(cens_target, digits = 2, format = "f")),
+    tau_label = paste0("tau_q=", formatC(tau_quantile, digits = 2, format = "f"))
+  ) %>%
+  ggplot(aes(x = tau_quantile, y = coverage_mean, color = cens_label, group = cens_label)) +
+  geom_hline(yintercept = target_coverage, linetype = "dashed", color = "black", linewidth = 0.5) +
+  geom_point(size = 2) +
+  geom_line(linewidth = 0.7) +
+  geom_errorbar(aes(ymin = coverage_ci_low, ymax = coverage_ci_high), width = 0.01, alpha = 0.8) +
+  facet_wrap(~dgp_label, ncol = 2) +
+  scale_x_continuous(breaks = sort(unique(setting_summary$tau_quantile))) +
+  labs(
+    title = "Coverage vs tau Quantile Across Scenarios",
+    x = "tau quantile used in DGP",
+    y = "Mean empirical coverage",
+    color = "Censoring target"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("coverage_vs_tau.png", p_cov)
+p_cov
+```
+
+```{r}
+p_len <- setting_summary %>%
+  mutate(
+    cens_label = paste0("cens_target=", formatC(cens_target, digits = 2, format = "f"))
+  ) %>%
+  ggplot(aes(x = tau_quantile, y = length_mean, color = cens_label, group = cens_label)) +
+  geom_point(size = 2) +
+  geom_line(linewidth = 0.7) +
+  geom_errorbar(aes(ymin = length_ci_low, ymax = length_ci_high), width = 0.01, alpha = 0.8) +
+  facet_wrap(~dgp_label, ncol = 2) +
+  scale_x_continuous(breaks = sort(unique(setting_summary$tau_quantile))) +
+  labs(
+    title = "Mean Interval Length vs tau Quantile",
+    x = "tau quantile used in DGP",
+    y = "Mean interval length",
+    color = "Censoring target"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("length_vs_tau.png", p_len)
+p_len
+```
+
+```{r}
+p_trade <- setting_summary %>%
+  mutate(
+    cens_label = paste0("c=", formatC(cens_target, digits = 2, format = "f")),
+    tau_label = paste0("tau_q=", formatC(tau_quantile, digits = 2, format = "f"))
+  ) %>%
+  ggplot(aes(x = length_mean, y = coverage_mean, color = cens_label, shape = tau_label)) +
+  geom_hline(yintercept = target_coverage, linetype = "dashed", color = "black", linewidth = 0.5) +
+  geom_point(size = 2.6, alpha = 0.9) +
+  facet_wrap(~dgp_label, ncol = 2) +
+  labs(
+    title = "Coverage-Length Tradeoff",
+    x = "Mean interval length",
+    y = "Mean coverage",
+    color = "Censoring",
+    shape = "tau"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("coverage_length_tradeoff.png", p_trade)
+p_trade
+```
+
+## Direct/Descriptive Visualization
+
+This plot shows individual predicted intervals and true `T*` values for sampled test observations from rep 1, highlighting covered vs missed cases, with a dashed line at realized `tau`.
+
+```{r}
+mid_cens <- sort(unique(sample_df$cens_target))
+mid_cens <- mid_cens[ceiling(length(mid_cens) / 2)]
+tau_levels <- sort(unique(sample_df$tau_quantile))
+show_tau <- unique(c(min(tau_levels), tau_levels[ceiling(length(tau_levels) / 2)], max(tau_levels)))
+
+showcase <- sample_df %>%
+  filter(dgp_id == "base", abs(cens_target - mid_cens) < 1e-8, tau_quantile %in% show_tau) %>%
+  group_by(setting_id, tau_quantile) %>%
+  slice_sample(n = 140)
+
+if ("eta_hat" %in% names(showcase)) {
+  showcase <- showcase %>% arrange(eta_hat, .by_group = TRUE)
+} else {
+  showcase <- showcase %>% arrange(T_star, .by_group = TRUE)
+}
+
+showcase <- showcase %>%
+  mutate(obs_rank = row_number(), covered_label = if_else(covered == 1, "Covered", "Missed")) %>%
+  ungroup() %>%
+  mutate(panel = paste0("tau_q=", formatC(tau_quantile, digits = 2, format = "f"),
+                        ", tau≈", formatC(tau, digits = 2, format = "f")))
+
+p_direct <- ggplot(showcase, aes(y = obs_rank)) +
+  geom_segment(aes(x = pi_lower, xend = pi_upper, yend = obs_rank, color = covered_label), alpha = 0.9) +
+  geom_point(aes(x = T_star, color = covered_label), size = 1.2) +
+  geom_vline(aes(xintercept = tau), linetype = "dashed", color = "gray35") +
+  facet_wrap(~panel, scales = "free_x") +
+  scale_color_manual(values = c("Covered" = "#1b9e77", "Missed" = "#d95f02")) +
+  labs(
+    title = "Sample-Level Intervals and Coverage by tau Setting",
+    x = "Time scale",
+    y = "Observation rank (sorted by estimated risk x^T beta_hat)",
+    color = "Coverage"
+  ) +
+  theme_bw(base_size = 11)
+
+save_plot("direct_interval_coverage_examples.png", p_direct, width = 11, height = 5.5)
+p_direct
+```
+
+## Traceability Notes
+
+All key parameters and run metadata are saved in:
+
+- `raw/scenario_manifest.csv`
+- `raw/run_config.csv`
+- `raw/rep_level_results.csv`
+- `raw/test_level_samples_rep1.csv`
+- `derived/setting_summary.csv`
+- `derived/overall_summary.csv`
+- `raw/sessionInfo.txt`

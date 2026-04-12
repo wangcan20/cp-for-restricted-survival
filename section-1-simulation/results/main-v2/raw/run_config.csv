@@ -1,0 +1,2 @@
+tag,out_dir,method,n_rep,n,test_frac,p,high_dim_p,alpha,B,seed0,sample_n,run_minutes,created_at
+main-v2,/Users/pql/Desktop/thesis/section-1-simulation/results/main-v2,CP + Cox (Upper=tau),30,2000,0.3,3,9,0.1,1500,20260213,260,0.521883749961853,2026-03-28 18:32:03

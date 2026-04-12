@@ -1,0 +1,23 @@
+.DS_Store
+README.html
+README_files/
+Rplots.pdf
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.synctex.gz
+*.toc
+
+# Quarto / editor scratch
+.quarto/
+
+# Temporary simulation runs
+section-1-simulation/results/tmp-*/
