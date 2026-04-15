@@ -1,0 +1,9 @@
+scenario_id,scenario_label,tau_quantile,n_rep,coverage_diff_mean,length_diff_mean
+aft_lognormal_linear,Log-Normal AFT (Linear),0.7,30,0.002055555555555558,0.004872543051688014
+aft_lognormal_linear,Log-Normal AFT (Linear),0.8,30,-8.88888888888889e-4,-0.0018641118240124571
+aft_lognormal_linear,Log-Normal AFT (Linear),0.9,30,-0.0017777777777777776,-0.004244438534767658
+aft_lognormal_linear,Log-Normal AFT (Linear),0.99,30,0.002944444444444432,0.0033559606602993944
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),0.7,30,0.003999999999999994,0.004620685802919595
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),0.8,30,-0.0018333333333333279,-0.003763755851790044
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),0.9,30,0.004111111111111113,0.0034009175076832768
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),0.99,30,-5.000000000000004e-4,1.0324446427807341e-4

@@ -40,14 +40,15 @@
 \pdfcompresslevel=9
 % Keep PDF version/object-compression under pdfx control to avoid setup conflicts.
 
-\definecolor{reviewpurple}{RGB}{128,0,96}
-\definecolor{revisionblue}{RGB}{0,76,122}
+\definecolor{reviewpurple}{RGB}{0,0,0}
+\definecolor{reviewblue}{RGB}{0,0,0}
+\definecolor{revisionblue}{RGB}{0,0,0}
 
 \hypersetup{
   colorlinks=true,
-  linkcolor=blue,
-  citecolor=blue,
-  urlcolor=blue
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black
 }
 
 \newcommand{\indep}{\perp \!\!\! \perp}
@@ -113,7 +114,7 @@ All rights reserved}
 \newpage
 \part*{Abstract}
 \addcontentsline{toc}{section}{Abstract}
-Right-censored survival data with a finite follow-up window are commonly encountered in biomedical studies. A central problem in this setting is to predict individualized time-to-event outcomes based on subject-level covariates. Existing survival prediction methods with valid inferential guarantees typically rely on correct specification of the underlying survival model, which may be difficult to justify in practice. On the other hand, Conformal prediction (CP) offers a flexible, model-free framework for quantifying uncertainty by producing statistically valid prediction intervals or sets. In this project, we develop a conformal inference framework to construct distribution-free predictive intervals for right-censored survival data under a finite observation window. The proposed approach adopts the Cox proportional hazards model as a working model, and corrects for potential bias due to model misspecification through conformal calibration. Specifically, synthetic samples are generated from an estimated joint distribution of the truncated survival time and covariates, and are used to calibrate predictive intervals produced by the working model. Overall, the proposed method provides robust, individualized prediction intervals for survival outcomes in the presence of censoring and administrative truncation, while retaining model-free inferential validity. From simulation results, the proposed method performs well by achieving near-nominal coverage and equal or better efficiency compared to parametric models. Future work includes applying methods to real data and extension to more complicated competing risk survival settings.
+Right-censored survival data with a finite follow-up window are commonly encountered in biomedical studies. A central problem in this setting is to predict individualized time-to-event outcomes based on subject-level covariates. Existing survival prediction methods with valid inferential guarantees typically rely on correct specification of the underlying survival model, which may be difficult to justify in practice. On the other hand, Conformal prediction (CP) offers a flexible, model-free framework for quantifying uncertainty by producing statistically valid prediction intervals or sets. In this project, we develop a conformal inference framework to construct distribution-free predictive intervals for right-censored survival data under a finite observation window. The proposed approach adopts the Cox proportional hazards model as a working model, and corrects for potential bias due to model misspecification through conformal calibration. Specifically, synthetic samples are generated from an estimated joint distribution of the truncated survival time and covariates, and are used to calibrate predictive intervals produced by the working model. Overall, the proposed method provides robust, individualized prediction intervals for survival outcomes in the presence of censoring and administrative truncation, while retaining model-free inferential validity. From simulation results, the proposed method performs well by achieving near-nominal coverage and competitive efficiency relative to correct parametric models, while remaining robust to working-model misspecification. Future work includes applying methods to real data and extension to more complicated competing risk survival settings.
 
 
 
@@ -126,16 +127,12 @@ Right-censored survival data with a finite follow-up window are commonly encount
 \newpage
 \part*{Acknowledgements}
 \addcontentsline{toc}{section}{Acknowledgements}
-\textcolor{reviewpurple}{%
-Acknowledgements to be finalized.
-}
 
-\newpage
-\part*{~}
-\addcontentsline{toc}{section}{Dedication}
-\begin{center}
-\textcolor{reviewpurple}{\textit{Dedication to be finalized.}}
-\end{center}
+I would like to express my sincere gratitude to Professor Mei-Cheng Wang, my thesis advisor, for her guidance, generosity, and trust throughout this work. From her, I have gradually learned how to approach a research problem, identify a meaningful topic, develop statistical ideas with clarity and to look at the real-world implications of statistical work beyond technical details. As a master's student taking my first steps into research, this guidance has been especially important to me. I am also deeply grateful for her kindness, patience, and the respect she has always shown for my ideas. The topic she introduced me to has been one of the most interesting ones that I have encountered.
+
+I am also very grateful to Professor Yiqun Chen for all his support and mentorship during my master's study. Although his role in this thesis is as reader, I have been fortunate to work with him extensively across several interesting projects over a longer period of time. He guided me through the first project that I carried out from beginning to end myself, and that experience gave me a clear understanding of the research process and played an important role in building my confidence, developing my interest in research and making career choices. I have also benefited greatly from his energy, positivity, and enthusiasm, which made collaboration both productive and genuinely enjoyable.
+
+Finally, I would like to thank my classmates and friends for their companionship throughout this program. I am truly grateful for all the warmth and kindness I received from them, and I hope our paths cross again in the future.
 
 \newpage
 \addcontentsline{toc}{section}{Table of Contents}
@@ -156,68 +153,51 @@ Acknowledgements to be finalized.
 \chapter{Literature Review}
 
 \section{Conformal Prediction: Foundations}
-Conformal prediction (CP) provides finite-sample uncertainty quantification under exchangeability by converting model outputs into calibrated prediction sets.
-Its central advantage is a separation between \emph{modeling} and \emph{calibration}: a learning algorithm can be used as a working score generator, while CP enforces a marginal error guarantee.
 
-Following \citet{vovk2022algorithmic}, let $z_i=(x_i,y_i)$ be exchangeable examples.
-Given a nonconformity measure $A$, for candidate label $y$ of a new object $x_n$, define
+In a general regression or classification setting, suppose we observe exchangeable data
 \[
-\alpha_i(y)=A\!\left(\{z_1,\ldots,z_{n-1},(x_n,y)\},z_i\right),\quad i=1,\ldots,n,
+(X_i,Y_i)\in\mathcal{X}\times\mathcal{Y}, \qquad i=1,\ldots,n.
 \]
-where $z_n=(x_n,y)$.
-The full conformal p-value is
+Given a new feature vector $X_{n+1}$, the goal is to predict $Y_{n+1}$. A fitted model $\hat f$ provides a point prediction, but we often also want a prediction set $C(X_{n+1})\subseteq\mathcal{Y}$ that quantifies uncertainty through the marginal coverage guarantee
+\begin{equation}
+\mathbb{P}\bigl(Y_{n+1}\in C(X_{n+1})\bigr)\ge 1-\alpha.
+\label{eq:cp_marginal_coverage}
+\end{equation}
+Conformal prediction is a technique for constructing sets $C(X_{n+1})$ that satisfy \eqref{eq:cp_marginal_coverage} without parametric assumptions on the data-generating distribution and without requiring $\hat f$ to be correctly specified. The key structural assumption is exchangeability of the data. \citep{angelopoulos2024theoretical,vovk2022algorithmic}
+
+Unlike traditional model-based interval prediction approaches, which may provide asymptotic conditional coverage
 \[
-p_n(y)=\frac{1}{n}\left|\left\{i\in\{1,\ldots,n\}:\alpha_i(y)\ge \alpha_n(y)\right\}\right|,
+\mathbb{P}\bigl(Y_{n+1}\in C(X_{n+1})\mid X_{n+1}=x\bigr)\ge 1-\alpha
 \]
-and the prediction set at miscoverage level $\epsilon$ is
+when the model is correctly specified, conformal prediction calibrates the joint distribution of $(X,Y)$ and therefore guarantees marginal rather than pointwise conditional coverage. In practice, there are conformal techniques that can improve approximate conditional behavior. Theoretically, however, when $X$ is continuous, exact coverage at each fixed value $X=x$ is generally impossible.
+
+A standard split-conformal construction proceeds as follows. For simplicity, assume $n$ is even and divide the data into a training fold of size $n/2$ and a calibration fold of size $n/2$. Let
 \[
-\Gamma_\epsilon(x_n)=\{y:\; p_n(y)>\epsilon\}.
+s:\mathcal{X}\times\mathcal{Y}\to\mathbb{R}
 \]
-The conformal p-value defined above is conservative when ties occur among
-the conformity scores. A common modification is the smoothed conformal
-predictor, which resolves ties by randomization.
+denote a score function, where larger values correspond to less conforming pairs $(x,y)$ relative to the model fit on the training fold.
 
-Specifically, the smoothed conformal p-value is defined as
+\begin{algorithm}[H]
+\caption{{Basic Split Conformal Prediction}}
 
+\begin{algorithmic}[1]
+\Require Exchangeable observations $(X_i,Y_i)_{i=1}^n$, miscoverage level $\alpha$, and score function $s$
+\State Use $(X_i,Y_i)$ for $i=1,\ldots,n/2$ to construct $s:\mathcal{X}\times\mathcal{Y}\to\mathbb{R}$.
+\For{$i=n/2+1,\ldots,n$}
+    \State Compute the calibration score $S_i=s(X_i,Y_i)$.
+\EndFor
+\State Let $\hat q$ be the $\left\lceil (1-\alpha)\left(\frac{n}{2}+1\right)\right\rceil$-th order statistic of $S_{n/2+1},\ldots,S_n$.
+\State Return the prediction set
 \[
-p_n^{\text{sm}}(y)
-=
-\frac{
-|\{i:\alpha_i(y)>\alpha_n(y)\}|
-+
-\tau |\{i:\alpha_i(y)=\alpha_n(y)\}|
-}{n},
+C(X_{n+1})=\{y\in\mathcal{Y}: s(X_{n+1},y)\le \hat q\}.
 \]
+\end{algorithmic}
 
-where \(\tau \sim \text{Unif}(0,1)\) is an independent random variable.
+\end{algorithm}
 
-The corresponding prediction set is defined as
-\[
-\Gamma_\epsilon(x_n)=\{y:p_n^{\text{sm}}(y)>\epsilon\}.
-\]
+Under exchangeability, this procedure guarantees the marginal coverage in \eqref{eq:cp_marginal_coverage} for any valid choice of score function. However, different scores produce prediction sets with different shapes and different efficiency. If the goal is sharper prediction, for example shorter intervals or better approximate conditional behavior under a working model, then the choice of score matters. For example, quantile-regression-based scores are natural in regression problems, while cumulative-probability scores are natural in classification problems. These choices can have favorable asymptotic properties under correct working-model specification and can lead to better-shaped conformal prediction sets. \citep{angelopoulos2024theoretical}
 
-Under exchangeability, the smoothed conformal predictor achieves exact
-finite-sample marginal validity, whereas the deterministic conformal
-predictor is slightly conservative. \citep{vovk2022algorithmic}.
-Operationally, this means that over repeated future predictions, the long-run miscoverage is controlled at level $\epsilon$ without requiring a correctly specified data model.
-
-For practical classification and regression, \citet{vovk2022algorithmic} also emphasizes inductive (split) conformal prediction.
-With proper training set $D_{\mathrm{tr}}$ and calibration set $D_{\mathrm{ca}}=\{z_i\}_{i=1}^m$, define calibration scores
-\[
-\alpha_i=A(D_{\mathrm{tr}},z_i),\quad i=1,\ldots,m,
-\]
-and candidate score $\alpha(x,y)=A(D_{\mathrm{tr}},(x,y))$.
-Then
-\[
-p(x,y)=\frac{\left|\{i:\alpha_i\ge \alpha(x,y)\}\right|+1}{m+1},\qquad
-\Gamma_\epsilon(x)=\{y:\;p(x,y)>\epsilon\}.
-\]
-For regression, a standard choice is residual nonconformity $A(D_{\mathrm{tr}},(x,y))=|y-\widehat y(x)|$.
-For classification, label scores can be converted into nonconformity scores via monotone transformations, and the same p-value rule yields set-valued label predictions.
-Compared with full conformal prediction, split conformal methods trade some statistical efficiency for large computational gains, which is one reason they are common in modern applications.
-In general, the validity of conformal prediction does not depend on the choice of the nonconformity measure $A$, provided the examples are exchangeable. 
-
-In this thesis, conformal calibration will be applied to survival outcomes under censoring. The following sections will review the background of survival analysis and existing work on conformal prediction for survival data.
+In this thesis, conformal calibration is applied to censored survival outcomes, and the score is built from an estimated survival function. The following sections review the basic survival-analysis setup and existing conformal methods for censored survival data.
 
 
 
@@ -235,16 +215,13 @@ Foundational methods to estimate survival time $T$ include the Kaplan--Meier est
 
 
 In many biomedical studies, follow-up occurs over a finite observational window.
-A natural target is then the truncated event time
+A natural target is then the terminated event time
 \[
 T^*=\min(T,\tau),
 \]
 where $\tau$ is a fixed horizon (for example, study end or an operational decision horizon). 
-This induces a point mass at $\tau$ corresponding to subjects whose event time exceeds the observation window, and that atom must be explicitly accounted for in estimation and prediction. Such settings are closely related to restricted survival time concepts commonly used in survival analysis. (\citep{royston2013restricted, uno2014moving})
+This induces a point mass at $\tau$ corresponding to subjects whose event time exceeds the observation window, and that atom must be explicitly accounted for in estimation and prediction. Such settings are closely related to restricted survival time concepts commonly used in survival analysis. \citep{royston2013restricted, uno2014moving}
 
-From an inferential perspective, finite windows make two issues central:
-(1) calibration under censoring and
-(2) clear interpretation of prediction targets.
 For prediction intervals, the target is no longer the unrestricted event time $T$, but the windowed outcome $T^*$.
 This distinction is crucial for both methodology and simulation design.
 
@@ -325,11 +302,11 @@ This decomposition is important for later adaptations, including the finite-wind
 
 \subsection{Positioning of This Thesis}
 
-The current thesis builds on the recent development of conformal methods for censored survival outcomes while focusing on a setting with a finite observation window. The two existing approaches reviewed above adopt substantially different strategies for handling censoring within conformal prediction.
+The current thesis builds on the recent development of conformal methods for censored survival outcomes while focusing on a setting with a finite observation window. There are two main difficulties for conformal prediction under this setting. First, because of general random censoring and administrative termination, we do not have complete observed samples from which to construct the calibration sets. Second, under a fixed study horizon, the target $T^*=\min(T,\tau)$ has a point mass at $\tau$, which introduces an additional source of uncertainty and makes the upper quantile potentially difficult to determine. 
 
-\textcolor{revisionblue}{Relative to \citet{candes2023conformalized}, which constructs a one-sided lower predictive bound by conditioning on subjects with sufficiently large censoring times and correcting the induced covariate shift through weighting, the focus of this thesis is different. Instead of producing lower bounds for the untruncated survival time $T$, the target here is the truncated outcome $T^*=\min(T,\tau)$ under a finite follow-up window, and the goal is to construct predictive intervals for this windowed target with upper endpoint fixed at $\tau$.}
+\citet{candes2023conformalized} construct a one-sided lower predictive bound by conditioning on subjects with sufficiently large censoring times and correcting the resulting covariate shift through weighting, under the assumption of Type-I censoring. This thesis differs in both target and construction. First, rather than producing lower bounds for the survival time $T$, it targets the truncated outcome $T^*=\min(T,\tau)$ and constructs predictive intervals for this finite-window target with upper endpoint fixed at $\tau$. Second, the censoring mechanism here is more general, allowing random censoring $C$ beyond the Type-I setting together with administrative termination. Finally, instead of using a weighting step in calibration, the proposed method recovers the joint distribution and draws synthetic samples for calibration.
 
-Conceptually, the methodological framework in this thesis is closer to the resampling-based conformal approach of \citet{qin2025conformal}. Their method reconstructs the joint distribution of $(T,X)$ using IPCW and generates calibration support through a bootstrap-based resampling scheme combined with working-model pivots. The implementation adopted here follows the same general philosophy of distribution recovery and pivot-based conformal calibration. The incremental contribution of the work includes (1) emphasizing a streamlined computational workflow by replacing the bootstrap layer used to generate calibration support with a direct Monte Carlo sampling step from the estimated joint distribution, which simplifies implementation while retaining the key conformal-style calibration mechanism. (2) extending the methodology to a finite observational window setting that considers administrative censoring due to practical factors (e.g. budget limits), which is more compatible with real-world applications. (3) Exploring and comparing more about the relationship between correctness of model assumptions and efficiency of conformal predictive intervals by conducting simulation studies, which provides empirical guidance on choosing working models given data. 
+The methodological framework in this thesis is close to the resampling-based conformal approach of \citet{qin2025conformal}. Their method reconstructs the joint distribution of $(T,X)$ using IPCW and generates calibration support through a bootstrap-based resampling scheme combined with working-model pivots. The implementation adopted here follows the same general philosophy of distribution recovery and pivot-based conformal calibration. The incremental contribution of this work includes (1) extending the methodology to a finite observational window setting that accounts for administrative censoring due to practical factors (e.g.\ budget limits), which is more compatible with real-world applications; (2) emphasizing a streamlined computational workflow by replacing the bootstrap layer used to generate calibration support with a direct Monte Carlo sampling step from the estimated joint distribution, which simplifies implementation while retaining the key conformal-style calibration mechanism; and (3) using more comprehensive data generating settings to compare different methods and study the relationship between correctness of model assumptions and the efficiency of conformal predictive intervals through simulation, which provides empirical guidance on choosing working models in practice and inspires further theoretical exploration on the function of working model and conformal score selection.
 
 Ongoing work includes (1) application to large-scale real-world datasets; (2) theoretical explorations of efficiency of conformal predictive intervals, and (3) methodological extension to competing risk data and categorical cause type predictions.
 
@@ -347,9 +324,9 @@ T^* = \min(T,\tau),
 \]
 which takes values in $[0,\tau]$ and represents the event time observable within
 the follow-up window.
-\textcolor{revisionblue}{To take account into the uncertainty at time $\tau$, our inferential target is a $(1-\alpha)$ predictive interval for $T^*$ given covariates with upper endpoint fixed at the finite horizon: for a new subject with covariate vector $z_0$, estimate}
+To account for the uncertainty at time $\tau$, our inferential target is a $(1-\alpha)$ predictive interval for $T^*$ given covariates with upper endpoint fixed at the finite horizon: for a new subject with covariate vector $z_0$, estimate
 \[
-{\color{revisionblue}\widehat C_{1-\alpha}(z_0)=\big[\widehat L_\alpha(z_0),\tau\big]}
+{\widehat C_{1-\alpha}(z_0)=\big[\widehat L_\alpha(z_0),\tau\big]}
 \]
 such that the conformal marginal coverage criterion
 \[
@@ -378,18 +355,18 @@ Following the general strategy of resampling-based conformal calibration in \cit
 
 \citet{qin2025conformal} define
 \[
-F_T(t,z)=\Pr(T\le t, Z\le z), \qquad G(t)=\Pr(C\ge t).
+F_{T,Z}(t,z)=\Pr(T\le t, Z\le z), \qquad G(t)=\Pr(C\ge t).
 \]
 In the original right-censored setting (targeting $(T,Z)$), the IPCW (inverse probability of censoring weighted) estimator
  takes the form
 \[
-\widehat F_T(t,z)=\frac{1}{n}\sum_{i=1}^n
+\widehat F_{T,Z}(t,z)=\frac{1}{n}\sum_{i=1}^n
 \frac{\Delta_i I(Y_i\le t, Z_i\le z)}{\widehat G(Y_i^-)}.
 \]
 
 Now our target is the transformed variable $T^*=\min(T,\tau)$:
 \[
-F(t,z)=\Pr(T^*\le t, Z\le z), \qquad t\in[0,\tau].
+F_{T^*,Z}(t,z)=\Pr(T^*\le t, Z\le z), \qquad t\in[0,\tau].
 \]
 To derive a nonparametric estimator of this $F(t,z)$ on $(T^*,Z)$, we consider two cases.
 
@@ -437,7 +414,7 @@ And at $t=\tau$:
 \]
 Equivalently, on $t\in[0,\tau]$,
 \[
-\widehat F(t,z)
+\widehat F_{T^*,Z}(t,z)
 = \frac{1}{n} \sum_{i=1}^n
 \frac{\Delta_i\, I(Y_i \le t, Z_i \le z)}{\widehat G(Y_i^-)}
 + \frac{1}{n} \sum_{i=1}^n
@@ -447,8 +424,8 @@ where the first term estimates the continuous part from observed failures, and t
 second term recovers the point mass at $T^*=\tau$. Because $C$ has mass at $\tau$,
 we emphasize that $G(\tau^-)=\Pr(C\ge\tau)$ is used rather than $\Pr(C>\tau)$, to avoid a zero denominator in KM estimation implementation.
 
-\section{\texorpdfstring{\textcolor{revisionblue}{Working Model and Conformal Pivot}}{Working Model and Conformal Pivot}}
-{\color{revisionblue}
+\section{Working Model and Conformal Pivot}
+
 To construct the predictive interval, we adopt the Cox proportional hazards model
 as a working model for $T^*$:
 \[
@@ -466,7 +443,7 @@ quantiles and then truncate its upper endpoint at $\tau$. That construction is
 systematically conservative once the nominal upper endpoint exceeds $\tau$. Instead,
 we fix the upper endpoint at $\tau$ from the outset and calibrate only the lower
 endpoint through the empirical distribution of sampled pivots.
-}
+
 
 \section{\texorpdfstring{\textcolor{revisionblue}{Algorithm}}{Algorithm}}
 {\color{revisionblue}
@@ -495,8 +472,7 @@ for $t\in[0,\tau]$, equivalently
 \widehat C_{1-\alpha}(z_0)=\big[\widehat L_\alpha(z_0),\tau\big].
 \]
 \end{enumerate}
-This construction allocates the full tail error to the lower side and respects the
-mixed distribution of $T^*$ at the administrative boundary.
+By setting the upper bound to $\tau$, we account for uncertainty from events that cannot be observed within the window, thus providing a reasonable interval prediction for the truncated outcome $T^*$. 
 }
 
 \begin{algorithm}[H]
@@ -676,7 +652,7 @@ well calibrated under finite-window truncation.
 Figures~\ref{fig:sim_results_cov} and \ref{fig:sim_results_len} present the
 simulation results. In Figure~\ref{fig:sim_cov_examples}, each horizontal line
 segment is one predicted interval $[\widehat L_i,\tau]$ for a randomly sampled
-subset of test observations, ordered by estimated risk score $x^\top\widehat\beta$,
+subset of test observations, ordered by estimated risk score $z^\top\widehat\beta$,
 and the dot on that segment is the corresponding true value $T_i^*$. Because the
 upper endpoint is fixed at $\tau$, all intervals terminate at the vertical dashed
 line marking the realized study horizon in that facet; variation across subjects is
@@ -771,9 +747,9 @@ The six fitted methods are summarized in Table~\ref{tab:expanded_baseline_method
 \toprule
 Method & Working model and interval & Implementation \\
 \midrule
-Weibull Plug-in $(U=\tau)$ & Correctly specified parametric working model with interval $[\widehat Q_{m,T^*}(\alpha\mid z),\tau]$ & Fitted by \texttt{survival::survreg(..., dist = "weibull")}; the fitted Weibull survival curve determines $\widehat F_{m,T^*}$ and $\widehat Q_{m,T^*}$. \\
-Cox Plug-in $(U=\tau)$ & Correctly specified semi-parametric working model with interval $[\widehat Q_{m,T^*}(\alpha\mid z),\tau]$ & Fitted by \texttt{coxph}; $\widehat S_m(t\mid z)=\exp\{-\widehat H_0(t)\exp(z^\top\widehat\beta)\}$ with Breslow baseline hazard estimate. \\
-Log-Normal Plug-in $(U=\tau)$ & Misspecified parametric working model with interval $[\widehat Q_{m,T^*}(\alpha\mid z),\tau]$ & Fitted by \texttt{survival::survreg(..., dist = "lognormal")}; this model is not compatible with the Weibull proportional hazards DGP. \\
+Weibull Plug-in & Correctly specified parametric working model with interval $[\widehat Q_{m,T^*}(\alpha\mid z),\tau]$ & Fitted by \texttt{survival::survreg(..., dist = "weibull")}; the fitted Weibull survival curve determines $\widehat F_{m,T^*}$ and $\widehat Q_{m,T^*}$. \\
+Cox Plug-in & Correctly specified semi-parametric working model with interval $[\widehat Q_{m,T^*}(\alpha\mid z),\tau]$ & Fitted by \texttt{coxph}; $\widehat S_m(t\mid z)=\exp\{-\widehat H_0(t)\exp(z^\top\widehat\beta)\}$ with Breslow baseline hazard estimate. \\
+Log-Normal Plug-in & Misspecified parametric working model with interval $[\widehat Q_{m,T^*}(\alpha\mid z),\tau]$ & Fitted by \texttt{survival::survreg(..., dist = "lognormal")}; this model is not compatible with the Weibull proportional hazards DGP. \\
 CP + Weibull & Conformal interval $[\widehat Q_{m,T^*}(1-\widehat c_{m,1-\alpha}\mid z),\tau]$ based on a Weibull working model & Uses the finite-window support estimator, Monte Carlo draws from $\widehat F$, and the global empirical $(1-\alpha)$ quantile of the fitted Weibull pivot $\widehat S_m(T^*\mid Z)$. \\
 CP + Cox & Conformal interval $[\widehat Q_{m,T^*}(1-\widehat c_{m,1-\alpha}\mid z),\tau]$ based on a Cox working model & This is the same upper-$\tau$ conformal procedure used in the main method, with the Cox pivot and the global empirical $(1-\alpha)$ pivot cutoff. \\
 CP + Log-Normal & Conformal interval $[\widehat Q_{m,T^*}(1-\widehat c_{m,1-\alpha}\mid z),\tau]$ based on a log-normal working model & Uses the same upper-$\tau$ conformal calibration scheme, but replaces the Cox pivot by the fitted log-normal survival curve. \\
@@ -816,30 +792,30 @@ Table~\ref{tab:expanded_baseline_summary} reports the replicate means together w
 \toprule
 $\tau_q$ & Method & Cov. & Cov. $95\%$ CI & Len. & Len. $95\%$ CI \\
 \midrule
-0.70 & Weibull Plug-in $(U=\tau)$ & 0.903 & [0.897, 0.910] & 1.040 & [1.028, 1.053] \\
-0.70 & Cox Plug-in $(U=\tau)$ & 0.903 & [0.896, 0.910] & 1.040 & [1.028, 1.053] \\
-0.70 & Log-Normal Plug-in $(U=\tau)$ & 0.911 & [0.905, 0.917] & 1.049 & [1.037, 1.061] \\
+0.70 & Weibull Plug-in & 0.903 & [0.897, 0.910] & 1.040 & [1.028, 1.053] \\
+0.70 & Cox Plug-in & 0.903 & [0.896, 0.910] & 1.040 & [1.028, 1.053] \\
+0.70 & Log-Normal Plug-in & 0.911 & [0.905, 0.917] & 1.049 & [1.037, 1.061] \\
 0.70 & CP + Weibull & 0.903 & [0.896, 0.910] & 1.040 & [1.026, 1.054] \\
 0.70 & CP + Cox & 0.904 & [0.896, 0.911] & 1.041 & [1.027, 1.055] \\
 0.70 & CP + Log-Normal & 0.904 & [0.897, 0.912] & 1.038 & [1.024, 1.053] \\
 \midrule
-0.80 & Weibull Plug-in $(U=\tau)$ & 0.900 & [0.895, 0.905] & 1.424 & [1.408, 1.439] \\
-0.80 & Cox Plug-in $(U=\tau)$ & 0.901 & [0.895, 0.907] & 1.424 & [1.408, 1.440] \\
-0.80 & Log-Normal Plug-in $(U=\tau)$ & 0.907 & [0.902, 0.912] & 1.430 & [1.414, 1.446] \\
+0.80 & Weibull Plug-in & 0.900 & [0.895, 0.905] & 1.424 & [1.408, 1.439] \\
+0.80 & Cox Plug-in & 0.901 & [0.895, 0.907] & 1.424 & [1.408, 1.440] \\
+0.80 & Log-Normal Plug-in & 0.907 & [0.902, 0.912] & 1.430 & [1.414, 1.446] \\
 0.80 & CP + Weibull & 0.900 & [0.893, 0.907] & 1.424 & [1.407, 1.441] \\
 0.80 & CP + Cox & 0.903 & [0.896, 0.909] & 1.426 & [1.411, 1.442] \\
 0.80 & CP + Log-Normal & 0.901 & [0.894, 0.907] & 1.422 & [1.405, 1.439] \\
 \midrule
-0.90 & Weibull Plug-in $(U=\tau)$ & 0.898 & [0.892, 0.904] & 2.143 & [2.120, 2.165] \\
-0.90 & Cox Plug-in $(U=\tau)$ & 0.897 & [0.891, 0.902] & 2.142 & [2.120, 2.165] \\
-0.90 & Log-Normal Plug-in $(U=\tau)$ & 0.903 & [0.896, 0.909] & 2.148 & [2.126, 2.170] \\
+0.90 & Weibull Plug-in & 0.898 & [0.892, 0.904] & 2.143 & [2.120, 2.165] \\
+0.90 & Cox Plug-in & 0.897 & [0.891, 0.902] & 2.142 & [2.120, 2.165] \\
+0.90 & Log-Normal Plug-in & 0.903 & [0.896, 0.909] & 2.148 & [2.126, 2.170] \\
 0.90 & CP + Weibull & 0.895 & [0.889, 0.901] & 2.139 & [2.116, 2.163] \\
 0.90 & CP + Cox & 0.896 & [0.890, 0.902] & 2.140 & [2.118, 2.162] \\
 0.90 & CP + Log-Normal & 0.901 & [0.895, 0.907] & 2.143 & [2.120, 2.167] \\
 \midrule
-0.99 & Weibull Plug-in $(U=\tau)$ & 0.897 & [0.891, 0.902] & 4.744 & [4.613, 4.874] \\
-0.99 & Cox Plug-in $(U=\tau)$ & 0.895 & [0.889, 0.901] & 4.742 & [4.613, 4.872] \\
-0.99 & Log-Normal Plug-in $(U=\tau)$ & 0.897 & [0.892, 0.903] & 4.745 & [4.614, 4.875] \\
+0.99 & Weibull Plug-in & 0.897 & [0.891, 0.902] & 4.744 & [4.613, 4.874] \\
+0.99 & Cox Plug-in & 0.895 & [0.889, 0.901] & 4.742 & [4.613, 4.872] \\
+0.99 & Log-Normal Plug-in & 0.897 & [0.892, 0.903] & 4.745 & [4.614, 4.875] \\
 0.99 & CP + Weibull & 0.897 & [0.891, 0.903] & 4.743 & [4.613, 4.872] \\
 0.99 & CP + Cox & 0.894 & [0.887, 0.901] & 4.740 & [4.610, 4.871] \\
 0.99 & CP + Log-Normal & 0.897 & [0.891, 0.903] & 4.742 & [4.613, 4.871] \\
@@ -855,20 +831,13 @@ $\tau_q$ & Method & Cov. & Cov. $95\%$ CI & Len. & Len. $95\%$ CI \\
 \label{fig:expanded_baseline_tradeoff}
 \end{figure}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.94\textwidth]{Figures/model_comparison_uppertau_interval_examples.pdf}
-\caption[Direct interval comparison in expanded baseline comparison]{Direct interval comparison at the representative middle horizon setting $\tau_q=0.90$. The same sampled test units are shown for all six fitted methods, ordered by the true linear predictor $x^\top\beta$.}
-\label{fig:expanded_baseline_direct}
-\end{figure}
+Table~\ref{tab:expanded_baseline_summary} together with Figure~\ref{fig:expanded_baseline_tradeoff} show that for correctly specified models (Weibull and Cox), there is essentially no difference between using and not using conformal calibration. For the correctly specified Weibull model, the plug-in and conformal coverages are both $0.903$ at $\tau_q=0.70$, both $0.900$ at $\tau_q=0.80$, and both $0.897$ at $\tau_q=0.99$ up to the third decimal. The same pattern appears for the Cox working model, where the plug-in and conformal coverages differ by at most $0.002$ over the four horizons. 
 
-Table~\ref{tab:expanded_baseline_summary} together with Figures~\ref{fig:expanded_baseline_tradeoff} and \ref{fig:expanded_baseline_direct} show that for correct specified models (Weibull and Cox), there's no difference between using and not using the conformal calibration. For the correctly specified Weibull model, the plug-in and conformal coverages are both $0.903$ at $\tau_q=0.70$, both $0.900$ at $\tau_q=0.80$, and both $0.897$ at $\tau_q=0.99$ up to the third decimal. The same pattern appears for the Cox working model, where the plug-in and conformal coverages differ by at most $0.002$ over the four horizons. 
+In contrast, for the misspecified model (Log-normal), the parametric plug-in predictions yield worse coverage, while the conformal calibration procedure maintains near-nominal coverage even though the working model is incorrect. At $\tau_q=0.70$, the log-normal plug-in coverage is $0.911$ and CP + Log-Normal is $0.904$; at $\tau_q=0.80$, the corresponding values are $0.907$ and $0.901$. These differences shrink as $\tau$ increases, and by $\tau_q=0.99$ both methods are essentially aligned at $0.897$ coverage with mean length about $4.74$.
 
-In contrast, for the misspecified model (Log-normal), the parametric predictions return worse coverage, while the conformal calibration procedure maintain near-nominal coverage even though the working model is incorrect. At $\tau_q=0.70$, the log-normal plug-in coverage is $0.911$ and CP + Log-Normal is $0.904$; at $\tau_q=0.80$, the corresponding values are $0.907$ and $0.901$. These differences shrink as $\tau$ increases, and by $\tau_q=0.99$ both methods are essentially aligned at $0.897$ coverage with mean length about $4.74$.
+Interval length behaves in a similar way across all six methods. Averaging over the four $\tau$ regimes, mean interval length is $2.338$ for the Weibull plug-in and $2.337$ for CP + Weibull; the corresponding Cox values are both $2.337$. At the widest horizon $\tau_q=0.99$, all four correctly specified procedures have mean lengths essentially equal to $4.74$.
 
-Interval length behaves in the a similar way across all six methods. Averaging over the four $\tau$ regimes, mean interval length is $2.338$ for the Weibull plug-in and $2.337$ for CP + Weibull; the corresponding Cox values are both $2.337$. At the widest horizon $\tau_q=0.99$, all four correctly specified procedures have mean lengths essentially equal to $4.74$.
-
-Overall, all six procedures target the same interval form $[\text{lower}(z),\tau]$, and most of them return very accurate coverage. The misspecified log-normal method showing conservativeness at smaller horizons, but get better when paired with the conformal calibration procedure.
+Overall, all six procedures target the same interval form $[\text{lower}(z),\tau]$, and most of them return very accurate coverage. The misspecified log-normal method shows conservativeness at smaller horizons, but this improves when it is paired with the conformal calibration procedure.
 
 As an additional sanity check, we evaluated the correct Weibull plug-in interval using the \emph{true} Weibull DGP parameters instead of estimated parameters. In this oracle calculation, no model fitting is required and the interval remains $[\widehat Q_{T^*}(\alpha\mid z),\tau]$ with the true conditional distribution of $T^*$. The resulting coverage is essentially flat at the nominal level across all horizons, as shown in Table~\ref{tab:expanded_baseline_oracle}. This confirms that the upper-$\tau$ construction itself is correctly targeted; the mild downward drift visible in the fitted Weibull and Cox plug-in curves is a finite-sample estimation effect rather than a structural error of the interval definition.
 
@@ -888,6 +857,42 @@ $\tau_q$ & Oracle coverage & Oracle mean length & Note \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{Harder DGP Robustness Check}
+Because the baseline Weibull proportional hazards design is relatively regular and favorable to the Cox working model, we also considered two harder finite-window DGPs as an additional robustness check. The first is a linear log-normal AFT model, under which the log-normal working model is correct while Cox and Weibull are misspecified. The second is a nonlinear log-normal AFT model, under which all three working models are misspecified. This comparison uses the same outer simulation settings as the expanded baseline experiment above: $n=2000$, a $70\%/30\%$ train--test split, $B=1500$, $\tau_q\in\{0.70,0.80,0.90,0.99\}$, and $30$ simulation replicates.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.96\textwidth]{Figures/challenging_dgp_tradeoff_by_tau.pdf}
+\caption[Coverage--length tradeoff under harder DGPs]{Coverage--length tradeoff under two harder finite-window DGPs. The top row corresponds to a linear log-normal AFT model, and the bottom row corresponds to a nonlinear log-normal AFT model.}
+\label{fig:challenging_dgp_tradeoff}
+\end{figure}
+
+Figure~\ref{fig:challenging_dgp_tradeoff} shows a clearer separation between methods than in the regular baseline setting. Under the linear log-normal AFT DGP, the correctly specified log-normal plug-in method performs well, whereas the misspecified Cox and Weibull plug-in methods are more conservative. Their conformal counterparts move coverage closer to the nominal level and are slightly shorter. Under the nonlinear log-normal AFT DGP, all three working models are misspecified; in this setting, the conformal procedures cluster near nominal coverage, whereas the plug-in methods remain mildly conservative, with the Weibull plug-in showing the largest deviation. Overall, this harder-DGP check supports the same qualitative conclusion as before: conformal calibration is most useful when the working model is incorrect, while the direct plug-in approach can still perform well when the model is correctly specified. Another notable pattern is that when the linear log-normal AFT model is correct, CP + Log-Normal achieves the best efficiency among the CP-based methods and is essentially as efficient as the correctly specified parametric method. When all parametric and CP-based working models are misspecified, CP combined with the more nearly correct log-normal working model again gives the best efficiency among the competing methods. This suggests that conformal calibration can provide additional benefit when it is paired with a working model that captures more of the underlying data-generating mechanism.
+}
+
+\section{\texorpdfstring{\textcolor{revisionblue}{Split-Sample Sensitivity Check}}{Split-Sample Sensitivity Check}}
+{\color{revisionblue}
+The main conformal algorithm uses the same training sample both to estimate the weighted finite-window support distribution of $(T^*,Z)$ and to fit the Cox working model. As a sensitivity check, we also considered a half-split variant in which the sample is divided into two equal parts: one half is used only for support estimation, while the other half is used only to fit the Cox working model, to reduce the dependence between training and calibration. This experiment uses the same outer settings as the harder-DGP check above: $n=2000$, a $70\%/30\%$ training--test split, $B=1500$ Monte Carlo draws, $\tau_q\in\{0.70,0.80,0.90,0.99\}$, and $30$ replicates for each of the two harder DGPs.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{\textcolor{revisionblue}{Average coverage and mean interval length for the original CP + Cox method and the half-split variant, aggregated over $\tau$ within each harder DGP.}}
+\label{tab:splitcheck_summary}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+Scenario & CP + Cox Cov. & Half-Split Cov. & CP + Cox Len. & Half-Split Len. \\
+\midrule
+Linear log-normal AFT & 0.897 & 0.898 & 3.167 & 3.167 \\
+Nonlinear log-normal AFT & 0.899 & 0.901 & 2.907 & 2.909 \\
+\bottomrule
+\end{tabular}
+}%
+\end{table}
+
+Table~\ref{tab:splitcheck_summary} shows that under the harder DGPs, the half-split variant behaves almost identically to the original CP + Cox procedure. In the linear log-normal AFT setting, coverage changes from $0.897$ to $0.898$ with essentially no change in mean interval length; in the nonlinear setting, coverage changes from $0.899$ to $0.901$, again with virtually no change in length. This suggests that separating support estimation from working-model fitting does not materially change the empirical behavior of the method in these experiments.
 }
 
 
@@ -899,11 +904,11 @@ The methodology integrates IPCW-based estimation of the joint distribution of $(
 From simulation experiments, three main empirical findings emerge.
 First, the finite-window conformal interval maintains near-nominal marginal coverage across a broad range of censoring and data-generating settings.
 Second, interval width responds predictably to the horizon parameter $\tau$ and scenario difficulty.
-\textcolor{revisionblue}{Third, in the expanded baseline working-model comparison, correct models (either with conformal calibration or not) perform well across all settings. Misspecified models perform worse without conformal calibration.}
+Third, in the expanded baseline working-model comparison and the harder-DGP check, correctly specified parametric models perform well across settings. Conformal procedures, whether paired with a correct or incorrect working model, achieve coverage and efficiency comparable to those of the correctly specified parametric methods, with more accurate working models tending to be the most efficient among the CP-based procedures. Incorrect parametric models perform worse, as expected. Taken together, these comparisons support the robustness and efficiency of the proposed conformal method for predicting time to event under finite follow-up.
 
-Several limitations remain.
-Current theory and experiments focus on independent censoring structures and limited working model class.
-The simulations are extensive but still finite, and further stress tests under stronger covariate shifts, heavier censoring, and higher-dimensional regimes are warranted.
+From a more practical perspective, the proposed method can address several clinically relevant questions in a fixed-horizon study. For an individual patient, it provides a plausible time range for the event to occur within the finite follow-up window at a prespecified confidence level. Equivalently, the lower endpoint gives a confidence-calibrated statement about how long the patient is expected to remain event-free. It can also address milestone-based questions, such as how confidently we can say that a patient will remain event-free beyond a clinically important time point (e.g.\ 1, 3, or 5 years). Finally, because the method produces lower predictive bounds for all patients, it can help identify individuals with shorter predicted event-free time who may require closer monitoring or earlier intervention.
+
+Several limitations remain. First, the method uses a recovered joint distribution to generate synthetic calibration samples. This avoids more complicated weighting and adjustment within the conformal procedure, but it also introduces reliance on the quality of $\hat F$ estimation, and finite-sample exchangeability in the original conformal sense is not guaranteed. Second, the harder-DGP results reveal some interesting patterns in how the correctness of the working model affects predictive efficiency, but these patterns have not yet been explored theoretically. Finally, the current study is limited to simulation and still lacks solid real-world data applications. 
 
 Ongoing work and future directions include (1) theoretical explorations of the underlying relationship between correctness of working models and efficiency of conformal predictive intervals in survival analysis. (2) methodological extension to more practical and complicated survival scenarios including competing risk data and categorical cause type predictions. (3) application to large-scale real-world datasets like the ADNI (Alzheimer’s Disease Neuroimaging Initiative) database.
 
@@ -911,11 +916,6 @@ Ongoing work and future directions include (1) theoretical explorations of the u
 \clearpage
 \addchaptertoc{References}
 \bibliography{Citations}
-
-\newpage
-\appendix
-\chapter{Appendix Placeholder}
-Appendix material to be added.
 
 \normalsize
 \nonfrenchspacing

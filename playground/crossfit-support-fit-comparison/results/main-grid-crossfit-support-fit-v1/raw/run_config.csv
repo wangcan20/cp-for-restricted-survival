@@ -1,0 +1,2 @@
+tag,out_dir,methods,n_folds,n_rep,n,test_frac,p,high_dim_p,alpha,B,seed0,sample_n,run_minutes,created_at
+main-grid-crossfit-support-fit-v1,/Users/pql/Desktop/thesis/playground/crossfit-support-fit-comparison/results/main-grid-crossfit-support-fit-v1,CP + Cox; CP + Cox (Cross-Fit),5,30,2000,0.3,3,9,0.1,1500,20260413,220,2.12002686659495,2026-04-12 14:37:01

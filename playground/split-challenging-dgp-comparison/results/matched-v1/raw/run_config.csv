@@ -1,0 +1,2 @@
+tag,out_dir,scenario_ids,n_rep,n,test_frac,p,beta_scale,sigma,tau_quantiles,cens_target,alpha,B,split_frac,seed0,created_at
+matched-v1,/Users/pql/Desktop/thesis/playground/split-challenging-dgp-comparison/results/matched-v1,"aft_lognormal_linear,aft_lognormal_nonlinear",30,2000,0.3,3,0.3,0.7,"0.7,0.8,0.9,0.99",0.2,0.1,1500,0.5,20260415,2026-04-15 15:19:50

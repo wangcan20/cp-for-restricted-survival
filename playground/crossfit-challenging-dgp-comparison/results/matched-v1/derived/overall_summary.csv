@@ -1,0 +1,5 @@
+scenario_id,scenario_label,method_id,method_label,total_reps,coverage_mean,coverage_sd,length_mean,length_sd,abs_cov_error
+aft_lognormal_linear,Log-Normal AFT (Linear),cp_cox_full,CP + Cox,120,0.8991666666666667,0.016876826249002764,3.144464064066013,2.397235342366114,8.333333333333526e-4
+aft_lognormal_linear,Log-Normal AFT (Linear),cp_cox_crossfit,CP + Cox (Cross-Fit),120,0.9018611111111111,0.01650790396283511,3.148786401857624,2.3960584201446538,0.0018611111111110912
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),cp_cox_full,CP + Cox,120,0.8991805555555555,0.018265082831892595,2.8837705066382506,1.980966050671364,8.194444444444837e-4
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),cp_cox_crossfit,CP + Cox (Cross-Fit),120,0.9006527777777777,0.016892442513380033,2.8862434831197206,1.9829316708858,6.527777777777244e-4

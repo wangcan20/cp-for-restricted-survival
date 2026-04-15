@@ -1,0 +1,198 @@
+---
+title: "Challenging DGP Model Comparison"
+format:
+  html:
+    toc: true
+    number-sections: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(ggplot2)
+  library(scales)
+  library(stringr)
+})
+
+args <- commandArgs(trailingOnly = TRUE)
+result_dir <- if (length(args) >= 1) args[[1]] else Sys.getenv("RESULT_DIR", unset = "")
+if (!nzchar(result_dir)) stop("Provide RESULT_DIR or pass the result directory as a trailing argument.")
+result_dir <- normalizePath(result_dir, winslash = "/", mustWork = TRUE)
+derived_dir <- file.path(result_dir, "derived")
+fig_dir <- file.path(result_dir, "figures")
+dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
+
+method_tau_summary <- read_csv(file.path(derived_dir, "method_tau_summary.csv"), show_col_types = FALSE)
+method_overall_summary <- read_csv(file.path(derived_dir, "method_overall_summary.csv"), show_col_types = FALSE)
+
+method_order <- c(
+  "Weibull Plug-in",
+  "Cox Plug-in",
+  "Log-Normal Plug-in",
+  "CP + Weibull",
+  "CP + Cox",
+  "CP + Log-Normal"
+)
+
+method_colors <- c(
+  "Weibull Plug-in" = "#4C78A8",
+  "Cox Plug-in" = "#59A14F",
+  "Log-Normal Plug-in" = "#E15759",
+  "CP + Weibull" = "#4C78A8",
+  "CP + Cox" = "#59A14F",
+  "CP + Log-Normal" = "#E15759"
+)
+
+method_shapes <- c(
+  "Weibull Plug-in" = 16,
+  "Cox Plug-in" = 16,
+  "Log-Normal Plug-in" = 16,
+  "CP + Weibull" = 15,
+  "CP + Cox" = 15,
+  "CP + Log-Normal" = 15
+)
+
+save_plot <- function(filename, plot, width, height) {
+  ggsave(file.path(fig_dir, filename), plot = plot, width = width, height = height, dpi = 300)
+}
+
+method_tau_summary <- method_tau_summary %>%
+  mutate(
+    method_label = factor(method_label, levels = method_order),
+    scenario_label = factor(
+      scenario_label,
+      levels = c("Log-Normal AFT (Linear)", "Log-Normal AFT (Nonlinear)")
+    )
+  )
+
+method_overall_summary <- method_overall_summary %>%
+  mutate(
+    method_label = factor(method_label, levels = method_order),
+    scenario_label = factor(
+      scenario_label,
+      levels = c("Log-Normal AFT (Linear)", "Log-Normal AFT (Nonlinear)")
+    )
+  )
+```
+
+# Overall Summary
+
+```{r}
+knitr::kable(
+  method_overall_summary %>%
+    transmute(
+      Scenario = scenario_label,
+      Method = method_label,
+      `Avg Coverage` = sprintf("%.3f", coverage_mean_avg),
+      `Avg Length` = sprintf("%.3f", length_mean_avg),
+      `Avg |Cov-0.9|` = sprintf("%.3f", abs_cov_error_avg),
+      Status = spec_status
+    )
+)
+```
+
+# Coverage Across Tau
+
+```{r}
+p_cov <- ggplot(
+  method_tau_summary,
+  aes(
+    x = tau_quantile,
+    y = coverage_mean,
+    color = method_label,
+    shape = method_label,
+    group = method_label
+  )
+) +
+  geom_hline(yintercept = 0.90, linetype = "dashed", color = "gray45", linewidth = 0.5) +
+  geom_line(linewidth = 0.65) +
+  geom_point(size = 2.4) +
+  geom_errorbar(aes(ymin = coverage_ci_low, ymax = coverage_ci_high), width = 0.012, linewidth = 0.35) +
+  facet_wrap(~scenario_label, ncol = 1) +
+  scale_color_manual(values = method_colors, drop = FALSE) +
+  scale_shape_manual(values = method_shapes, drop = FALSE) +
+  scale_x_continuous(breaks = sort(unique(method_tau_summary$tau_quantile))) +
+  coord_cartesian(ylim = c(0.82, 0.98)) +
+  labs(
+    x = "tau quantile used in the DGP",
+    y = "mean empirical coverage",
+    color = "Method",
+    shape = "Method"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom")
+
+p_cov
+save_plot("coverage_vs_tau_by_method.pdf", p_cov, width = 10.5, height = 7.8)
+```
+
+# Length Across Tau
+
+```{r}
+p_len <- ggplot(
+  method_tau_summary,
+  aes(
+    x = tau_quantile,
+    y = length_mean,
+    color = method_label,
+    shape = method_label,
+    group = method_label
+  )
+) +
+  geom_line(linewidth = 0.65) +
+  geom_point(size = 2.4) +
+  geom_errorbar(aes(ymin = length_ci_low, ymax = length_ci_high), width = 0.012, linewidth = 0.35) +
+  facet_wrap(~scenario_label, ncol = 1, scales = "free_y") +
+  scale_color_manual(values = method_colors, drop = FALSE) +
+  scale_shape_manual(values = method_shapes, drop = FALSE) +
+  scale_x_continuous(breaks = sort(unique(method_tau_summary$tau_quantile))) +
+  labs(
+    x = "tau quantile used in the DGP",
+    y = "mean interval length",
+    color = "Method",
+    shape = "Method"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom")
+
+p_len
+save_plot("length_vs_tau_by_method.pdf", p_len, width = 10.5, height = 7.8)
+```
+
+# Coverage-Length Tradeoff
+
+```{r}
+tradeoff_df <- method_tau_summary %>%
+  mutate(panel = paste0(scenario_label, "\n", "tau_q=", formatC(tau_quantile, digits = 2, format = "f")))
+
+p_trade <- ggplot(
+  tradeoff_df,
+  aes(
+    x = length_mean,
+    y = coverage_mean,
+    color = method_label,
+    shape = method_label
+  )
+) +
+  geom_hline(yintercept = 0.90, linetype = "dashed", color = "gray45", linewidth = 0.5) +
+  geom_point(size = 3, alpha = 0.85) +
+  facet_wrap(~panel, ncol = 2, scales = "free") +
+  scale_color_manual(values = method_colors, drop = FALSE) +
+  scale_shape_manual(values = method_shapes, drop = FALSE) +
+  labs(
+    x = "mean interval length",
+    y = "mean empirical coverage",
+    color = "Method",
+    shape = "Method"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom")
+
+p_trade
+save_plot("coverage_length_tradeoff_by_tau.pdf", p_trade, width = 11.5, height = 8.2)
+```

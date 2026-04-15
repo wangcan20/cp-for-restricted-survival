@@ -1,0 +1,2 @@
+tag,out_dir,methods,split_frac,n_rep,n,test_frac,p,high_dim_p,alpha,B,seed0,sample_n,run_minutes,created_at
+main-grid-split-support-fit-v1,/Users/pql/Desktop/thesis/playground/split-support-fit-comparison/results/main-grid-split-support-fit-v1,CP + Cox; CP + Cox (Split Support/Fit),0.5,30,2000,0.3,3,9,0.1,1500,20260412,220,0.994261900583903,2026-04-12 14:26:07

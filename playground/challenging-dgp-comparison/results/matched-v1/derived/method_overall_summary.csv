@@ -1,0 +1,13 @@
+scenario_id,scenario_label,method_id,method_label,estimator_family,working_model,spec_status,is_conformal,n_tau,coverage_mean_avg,length_mean_avg,abs_cov_error_avg
+aft_lognormal_linear,Log-Normal AFT (Linear),cp_cox,CP + Cox,conformal,Cox,misspecified,TRUE,4,0.8991527777777778,3.144662770139944,0.004236111111111135
+aft_lognormal_linear,Log-Normal AFT (Linear),cp_lognormal,CP + Log-Normal,conformal,Log-Normal,correct,TRUE,4,0.899875,3.108757949858624,0.002375000000000016
+aft_lognormal_linear,Log-Normal AFT (Linear),cp_weibull,CP + Weibull,conformal,Weibull,misspecified,TRUE,4,0.8991944444444444,3.115635410569979,0.0026666666666666783
+aft_lognormal_linear,Log-Normal AFT (Linear),plugin_cox,Cox Plug-in,plug-in,Cox,misspecified,FALSE,4,0.9146805555555555,3.1761031935867887,0.014680555555555502
+aft_lognormal_linear,Log-Normal AFT (Linear),plugin_lognormal,Log-Normal Plug-in,plug-in,Log-Normal,correct,FALSE,4,0.9001527777777778,3.108101527812315,0.0035694444444444584
+aft_lognormal_linear,Log-Normal AFT (Linear),plugin_weibull,Weibull Plug-in,plug-in,Weibull,misspecified,FALSE,4,0.9325694444444445,3.1831841895154964,0.03256944444444443
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),cp_cox,CP + Cox,conformal,Cox,misspecified,TRUE,4,0.8989166666666667,2.8832345635632186,0.0014444444444444426
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),cp_lognormal,CP + Log-Normal,conformal,Log-Normal,misspecified,TRUE,4,0.8971666666666667,2.8650179693989846,0.0028333333333333544
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),cp_weibull,CP + Weibull,conformal,Weibull,misspecified,TRUE,4,0.8994027777777778,2.8739793464442718,0.00126388888888887
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),plugin_cox,Cox Plug-in,plug-in,Cox,misspecified,FALSE,4,0.9055277777777777,2.894402176301606,0.005527777777777743
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),plugin_lognormal,Log-Normal Plug-in,plug-in,Log-Normal,misspecified,FALSE,4,0.902625,2.8756246904490683,0.0026249999999999607
+aft_lognormal_nonlinear,Log-Normal AFT (Nonlinear),plugin_weibull,Weibull Plug-in,plug-in,Weibull,misspecified,FALSE,4,0.9235138888888889,2.91977676015937,0.023513888888888862
